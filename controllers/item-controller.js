@@ -134,3 +134,48 @@ export const setItemScore = async (item_id, score) => {
 
   return item
 }
+
+export const setItemWishlist = async (item_id, user_id) => {
+
+  const created_at = new Date()
+  const values = [item_id, created_at, created_at, user_id]
+
+  // check if item is already in wishlist
+  const sql_check = `
+      SELECT
+        *
+      FROM
+        item_wishlists
+      WHERE
+        item_id = $1
+      AND
+        user_id = $2
+      `;
+
+  const { rowCount } = await pool.query(sql_check, [item_id, user_id]);
+
+  if (rowCount == 0) {
+    const sql = `
+    INSERT INTO
+      item_wishlists (item_id, created_at, updated_at, user_id)
+    values ($1, $2, $3, $4)
+    RETURNING *
+    `;
+
+    const { rows: [item], rowCount } = await pool.query(sql, values);
+    return item
+  }
+  else {
+    //return an error that item is already in wishlist
+    console.log('item is already in wishlist');
+    throw {
+      code: 409,
+      response: 'item is already in wishlist',
+    }
+
+  }
+
+
+
+}
+

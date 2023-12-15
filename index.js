@@ -5,8 +5,9 @@ import cors from 'cors'
 import 'dotenv/config'
 
 import { registerUser, validateLogin } from './controllers/user-controller.js'
-import { createItem, getItem, getItems, setItemScore } from './controllers/item-controller.js'
+import { createItem, getItem, getItems, setItemScore, setItemWishlist } from './controllers/item-controller.js'
 import { getItemCategories } from './controllers/item_categories-controller.js'
+import e from 'express'
 
 const app = express()
 
@@ -43,6 +44,18 @@ app.post("/register", async (req, res) => {
   }
 })
 
+
+/* items_categories */
+
+app.get("/item_categories", async (req, res) => {
+  try {
+    const item_categories = await getItemCategories()
+    res.json(item_categories)
+  }
+  catch (error) {
+    res.status(500).send({ message: error })
+  }
+})
 
 /* items */
 
@@ -81,17 +94,7 @@ app.get("/items/:id", async (req, res) => {
   }
 })
 
-/* items_categories */
 
-app.get("/item_categories", async (req, res) => {
-  try {
-    const item_categories = await getItemCategories()
-    res.json(item_categories)
-  }
-  catch (error) {
-    res.status(500).send({ message: error })
-  }
-})
 
 /* item score */
 
@@ -107,5 +110,27 @@ app.post("/items/:id/score", async (req, res) => {
   catch (error) {
     console.error(error)
     res.status(500).send({ message: error })
+  }
+})
+
+/* item wishilist */
+
+app.post("/items/:id/wishlist", async (req, res) => {
+  try {
+    const id = req.params.id
+    const user_id = 1 // todo sacar del token
+
+    const item = await setItemWishlist(id, user_id)
+    res.json(item)
+
+  }
+  catch (error) {
+    if (error.code == 409) {
+      res.status(409).send({ message: error })
+    }
+    else {
+      res.status(500).send({ message: error })
+    }
+
   }
 })
