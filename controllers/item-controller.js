@@ -2,6 +2,56 @@ import { pool } from '../config/database.js'
 import fs from 'fs'
 import crypto from 'crypto';
 
+const check_item = async (item_id, user_id) => {
+  // check if item exists
+  const sql_check = `
+      SELECT
+        *
+      FROM
+        items
+      WHERE
+        id = $1
+      `;
+
+  const { rows: [item], rowCount } = await pool.query(sql_check, [item_id]);
+
+  if (rowCount == 0) {
+    console.log('item not found');
+    throw {
+      code: 404,
+      response: 'item not found',
+    }
+  }
+
+  return item
+}
+
+const check_ownership = (item_user_id, user_id) => {
+
+  console.log('item_user_id: ', item_user_id);
+  console.log('user_id: ', user_id);
+
+  if (parseInt(item_user_id) !== parseInt(user_id)) {
+    console.log('item is not yours');
+    throw {
+      code: 401,
+      response: 'item is not yours',
+    }
+  }
+}
+
+const check_status = (item_status) => {
+  if (item_status == 1) {
+    console.log('item is already deleted');
+    throw {
+      code: 409,
+      response: 'item is already deleted',
+    }
+  }
+}
+
+
+
 
 export const createItem = async (item) => {
   let { name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, photos } = item
@@ -86,6 +136,8 @@ export const getItems = async () => {
         item_photos ON item_photos.item_id = items.id
       LEFT JOIN 
         item_scores ON item_scores.item_id = items.id
+      WHERE
+        items.status = 0
       GROUP BY
         items.id
       ORDER BY
@@ -111,13 +163,85 @@ export const getItem = async (id) => {
     item_scores ON item_scores.item_id = items.id
   WHERE 
     items.id = $1
+  AND
+    items.status = 0
   GROUP BY 
     items.id;
   `;
 
   const { rows: [item], rowCount } = await pool.query(sql, [id]);
 
+  if (rowCount == 0) {
+    console.log('item not found');
+    throw {
+      code: 404,
+      response: 'item not found',
+    }
+  }
+
   return item
+}
+
+export const deleteItem = async (id, user_id) => {
+
+  // logic delete of an item
+  // check ownership of the item
+  const item = await check_item(id, user_id)
+  check_ownership(item.user_id, user_id)
+  check_status(item.status)
+
+  // delete item
+  const sql = `
+      UPDATE
+        items
+      SET
+        status = 1
+      WHERE
+        id = $1
+      AND
+        user_id = $2
+      RETURNING *
+      `;
+
+  const { rows: [deleted_item] } = await pool.query(sql, [id, user_id]);
+  return deleted_item
+
+}
+
+export const editItem = async (item_id, user_id, params) => {
+
+  const item = await check_item(item_id, user_id)
+  check_ownership(item.user_id, user_id)
+  check_status(item.status)
+
+  console.log(params);
+  const { name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description } = params
+  const updated_at = new Date()
+  const values = [name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, updated_at, item_id, user_id]
+
+  const sql = `
+      UPDATE
+        items
+      SET
+        name = $1, 
+        excerpt = $2, 
+        year = $3, 
+        price = $4, 
+        item_category_id = $5, 
+        item_type = $6, 
+        is_discount = $7, 
+        discount_price = $8, 
+        description = $9, 
+        updated_at = $10
+      WHERE
+        id = $11
+      AND
+        user_id = $12
+      RETURNING *
+      `;
+
+  const { rows: [updatedItem] } = await pool.query(sql, values);
+  return updatedItem
 }
 
 export const setItemScore = async (item_id, score) => {
@@ -178,4 +302,22 @@ export const setItemWishlist = async (item_id, user_id) => {
 
 
 }
+
+export const deleteItemWishlist = async (item_id, user_id) => {
+
+  const sql = `
+      DELETE FROM
+        item_wishlists
+      WHERE
+        item_id = $1
+      AND
+        user_id = $2
+      RETURNING *
+      `;
+
+  const { rows: [item] } = await pool.query(sql, [item_id, user_id]);
+
+  return item
+}
+
 
