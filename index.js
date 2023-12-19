@@ -3,9 +3,11 @@ import morgan from 'morgan-body'
 import jwt from 'jsonwebtoken'
 import cors from 'cors'
 import 'dotenv/config'
+import { verifyToken } from './middlewares/middleware.js'
+
 
 import { registerUser, validateLogin, getUser, getUsers, createUserAvatar, editUser } from './controllers/user-controller.js'
-import { createItem, getItem, getItems, setItemScore, setItemWishlist, deleteItemWishlist, deleteItem, editItem } from './controllers/item-controller.js'
+import { createItem, getItem, getItems, setItemScore, setItemWishlist, deleteItemWishlist, deleteItem, editItem, getMyItems } from './controllers/item-controller.js'
 import { getItemCategories } from './controllers/item_categories-controller.js'
 
 const app = express()
@@ -16,24 +18,24 @@ app.use(express.json({ limit: '50mb' })); /* set limit for 50mb*/
 app.use(express.static('public')) /* public path for files */
 
 /* users */
-app.post("/login", async (req, res) => {
+app.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body
     const login = await validateLogin(email, password)
 
     const token = jwt.sign(login, process.env.JWT_SECRET, { expiresIn: '2h' })
-    res.send(token)
+    res.send({ token })
   } catch (error) {
     res.status(error.code || 500).send(error)
   }
 })
 
-app.post("/register", async (req, res) => {
+app.post("/auth/register", async (req, res) => {
   try {
     const user = req.body
     await registerUser(user)
 
-    res.json({ message: "User Registered" })
+    res.json({ message: "Usuario creado satisfactoriamente" })
   } catch (error) {
     console.error(error)
     res.status(error.code || 500).send(error)
@@ -132,16 +134,33 @@ app.post("/items", async (req, res) => {
 
     console.log(created_item);
 
-    res.json({ message: "Item Created" })
+    res.json(created_item)
   } catch (error) {
     console.error(error)
     res.status(error.code || 500).send(error)
   }
 })
 
-app.get("/items", async (_, res) => {
+app.get("/items", verifyToken, async (req, res) => {
+  console.log('current_user: ', req.current_user)
+
   try {
     const items = await getItems()
+    res.json(items)
+  }
+  catch (error) {
+    if (error.code == 404) {
+      res.status(404).send({ message: error })
+    } else {
+      console.log('123')
+      res.status(500).send({ message: error })
+    }
+  }
+})
+
+app.get("/items/my", async (_, res) => {
+  try {
+    const items = await getMyItems()
     res.json(items)
   }
   catch (error) {
@@ -153,6 +172,7 @@ app.get("/items", async (_, res) => {
 
   }
 })
+
 
 app.get("/items/:id", async (req, res) => {
   try {

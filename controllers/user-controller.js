@@ -25,17 +25,40 @@ const check_user = async (id) => {
   return user
 }
 
-
 export const registerUser = async (user) => {
-  let { name, email, password, phone } = user
 
-  const cryptedPass = bcrypt.hashSync(password, 10)
+  // check if user email already exist
 
-  const created_at = new Date()
-  const values = [name, email, cryptedPass, phone, '1', created_at, created_at]
+  const { email } = user
 
-  const sql = "INSERT INTO users (name, email, password, phone, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7 )"
-  pool.query(sql, values)
+  const sql = `
+      SELECT
+        *
+      FROM
+        users
+      WHERE
+        users.email = $1
+      `;
+  const { rowCount } = await pool.query(sql, [email]);
+
+  if (rowCount === 0) {
+
+    let { name, email, password, phone } = user
+    const cryptedPass = bcrypt.hashSync(password, 10)
+
+    const created_at = new Date()
+    const values = [name, email, cryptedPass, phone, '1', created_at, created_at]
+
+    const sql = "INSERT INTO users (name, email, password, phone, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7 )"
+    pool.query(sql, values)
+  }
+
+  else {
+    throw {
+      code: 409,
+      message: 'Este correo ya se encuentra registrado',
+    }
+  }
 
 }
 
@@ -53,7 +76,7 @@ export const validateLogin = async (email, password) => {
   if (!isMatch || rowCount === 0) {
     throw {
       code: 401,
-      message: 'Invalid username or password'
+      message: 'Usuario y/o contraseña incorrectos'
     }
   }
 

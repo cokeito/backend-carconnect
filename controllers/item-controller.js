@@ -50,10 +50,9 @@ const check_status = (item_status) => {
   }
 }
 
-
-
-
 export const createItem = async (item) => {
+
+  console.log(item);
   let { name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, photos } = item
 
   const status = 0
@@ -129,22 +128,58 @@ export const getItems = async () => {
       SELECT
         items.*,
         array_to_json(array_remove(array_agg(DISTINCT item_photos), NULL)) AS photos,
-        COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score
+        COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score,
+        item_categories.name AS category_name
       FROM
         items
       LEFT JOIN
         item_photos ON item_photos.item_id = items.id
       LEFT JOIN 
         item_scores ON item_scores.item_id = items.id
+      LEFT JOIN
+        item_categories ON item_categories.id = items.item_category_id
       WHERE
         items.status = 0
       GROUP BY
-        items.id
+        items.id, item_categories.name
       ORDER BY
-        items.id ASC
+        items.id DESC
       `;
 
   const { rows, rowCount } = await pool.query(sql);
+
+  return rows
+}
+
+export const getMyItems = async () => {
+  const sql = `
+      SELECT
+        items.*,
+        array_to_json(array_remove(array_agg(DISTINCT item_photos), NULL)) AS photos,
+        COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score,
+        item_categories.name AS category_name
+      FROM
+        items
+      LEFT JOIN
+        item_photos ON item_photos.item_id = items.id
+      LEFT JOIN 
+        item_scores ON item_scores.item_id = items.id
+      LEFT JOIN
+        item_categories ON item_categories.id = items.item_category_id
+      WHERE
+        items.status = 0
+      AND
+        items.user_id = $1
+      GROUP BY
+        items.id, item_categories.name
+      ORDER BY
+        items.id DESC
+      `;
+
+  const user_id = 1 // todo sacar del token
+
+  const values = [user_id]
+  const { rows, rowCount } = await pool.query(sql, values);
 
   return rows
 }
@@ -154,19 +189,22 @@ export const getItem = async (id) => {
   SELECT 
     items.*, 
     array_to_json(array_remove(array_agg(DISTINCT item_photos), NULL)) AS photos,
-    COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score
+    COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score,
+    item_categories.name AS category_name
   FROM 
     items
   LEFT JOIN 
     item_photos ON item_photos.item_id = items.id
   LEFT JOIN 
     item_scores ON item_scores.item_id = items.id
+  LEFT JOIN
+    item_categories ON item_categories.id = items.item_category_id
   WHERE 
     items.id = $1
   AND
     items.status = 0
   GROUP BY 
-    items.id;
+    items.id, item_categories.name;
   `;
 
   const { rows: [item], rowCount } = await pool.query(sql, [id]);
