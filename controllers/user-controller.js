@@ -49,8 +49,17 @@ export const registerUser = async (user) => {
     const created_at = new Date()
     const values = [name, email, cryptedPass, phone, '1', created_at, created_at]
 
-    const sql = "INSERT INTO users (name, email, password, phone, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7 )"
-    pool.query(sql, values)
+    const sql = `
+                INSERT INTO users
+                  (name, email, password, phone, status, created_at, updated_at) 
+                VALUES 
+                  ($1, $2, $3, $4, $5, $6, $7) 
+                RETURNING *
+                `
+
+    const { rows: [saved_item], rowCount } = await pool.query(sql, values);
+    console.log('inserted_id: ', saved_item);
+    return saved_item
   }
 
   else {
@@ -232,4 +241,59 @@ export const editUser = async (id, params) => {
 
 }
 
+export const getWishlist = async (user_id) => {
+  console.log(user_id);
+  const sql = `
+    SELECT
+      item_id
+    FROM
+      item_wishlists
+    WHERE
+      user_id = $1
+    `;
+
+  const { rows: wishlist, rowCount } = await pool.query(sql, [user_id]);
+
+  const items_wishlist = wishlist.map(item => item.item_id)
+
+  return items_wishlist
+}
+
+export const getUserWishlist = async (user_id) => {
+  console.log('aca ***************', user_id);
+  const sql = `
+    SELECT
+      items.*,
+      array_to_json(array_remove(array_agg(DISTINCT item_photos), NULL)) AS photos,
+      COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score,
+      item_categories.name AS category_name,
+      iw.user_id as req_user_id
+    FROM
+      item_wishlists iw
+    JOIN
+      items
+    LEFT JOIN
+      item_photos ON item_photos.item_id = items.id
+    LEFT JOIN 
+      item_scores ON item_scores.item_id = items.id
+    LEFT JOIN
+      item_categories ON item_categories.id = items.item_category_id
+    ON
+      items.id = iw.item_id
+    WHERE
+      iw.user_id = $1
+    AND
+      items.status = 0
+    GROUP BY
+      items.id, item_categories.name, iw.user_id
+    ORDER BY
+      items.id DESC
+      `;
+
+  const { rows: items, rowCount } = await pool.query(sql, [user_id]);
+
+  console.log(items);
+
+  return items
+}
 

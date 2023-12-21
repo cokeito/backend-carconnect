@@ -6,9 +6,10 @@ import 'dotenv/config'
 import { verifyToken } from './middlewares/middleware.js'
 
 
-import { registerUser, validateLogin, getUser, getUsers, createUserAvatar, editUser } from './controllers/user-controller.js'
+import { registerUser, validateLogin, getUser, getUsers, createUserAvatar, editUser, getWishlist, getUserWishlist } from './controllers/user-controller.js'
 import { createItem, getItem, getItems, setItemScore, setItemWishlist, deleteItemWishlist, deleteItem, editItem, getMyItems } from './controllers/item-controller.js'
 import { getItemCategories } from './controllers/item_categories-controller.js'
+import { searchItems } from './controllers/search-controller.js'
 
 const app = express()
 morgan(app)
@@ -23,7 +24,7 @@ app.post("/auth/login", async (req, res) => {
     const { email, password } = req.body
     const login = await validateLogin(email, password)
 
-    const token = jwt.sign(login, process.env.JWT_SECRET, { expiresIn: '2h' })
+    const token = jwt.sign(login, process.env.JWT_SECRET, { expiresIn: '4h' })
     res.send({ token })
   } catch (error) {
     res.status(error.code || 500).send(error)
@@ -32,17 +33,17 @@ app.post("/auth/login", async (req, res) => {
 
 app.post("/auth/register", async (req, res) => {
   try {
-    const user = req.body
-    await registerUser(user)
+    const user_params = req.body
+    const user = await registerUser(user_params)
+    return res.json(user)
 
-    res.json({ message: "Usuario creado satisfactoriamente" })
   } catch (error) {
     console.error(error)
     res.status(error.code || 500).send(error)
   }
 })
 
-app.get('/users/:id', async (req, res) => {
+app.get('/users/:id', verifyToken, async (req, res) => {
   console.log('here')
   try {
     const id = req.params.id
@@ -56,7 +57,7 @@ app.get('/users/:id', async (req, res) => {
   }
 })
 
-app.get('/users', async (_, res) => {
+app.get('/users', verifyToken, async (_, res) => {
   try {
     const users = await getUsers()
     res.json(users)
@@ -69,7 +70,27 @@ app.get('/users', async (_, res) => {
   }
 })
 
-app.post('/users/:id/avatar', async (req, res) => {
+app.get('/wishlist/user', verifyToken, async (req, res) => {
+  try {
+    const user_id = req.current_user.id
+    console.log(user_id);
+    const wishlist = await getUserWishlist(user_id)
+
+    res.json(wishlist)
+  }
+  catch (error) {
+
+    if (error.code) {
+      res.status(error.code).send({ message: error.response })
+    }
+    else {
+      res.status(401).send({ message: error })
+    }
+  }
+})
+
+
+app.post('/users/:id/avatar', verifyToken, async (req, res) => {
   try {
     const id = req.params.id
     const user_id = 1 // todo sacar del token
@@ -92,7 +113,7 @@ app.post('/users/:id/avatar', async (req, res) => {
   }
 })
 
-app.put('/users/:id', async (req, res) => {
+app.put('/users/:id', verifyToken, async (req, res) => {
   try {
     const id = req.params.id
     const user_id = 1 // todo sacar del token
@@ -113,9 +134,28 @@ app.put('/users/:id', async (req, res) => {
   }
 })
 
+app.get('/wishlist', verifyToken, async (req, res) => {
+  try {
+    const user_id = req.current_user.id // todo sacar del token
+    const wishlist = await getWishlist(user_id)
+
+    res.json(wishlist)
+  }
+  catch (error) {
+
+    if (error.code) {
+      res.status(error.code).send({ message: error.response })
+    }
+    else {
+      res.status(500).send({ message: error })
+    }
+  }
+})
+
+
 /* items_categories */
 
-app.get("/item_categories", async (_, res) => {
+app.get("/item_categories", verifyToken, async (_, res) => {
   try {
     const item_categories = await getItemCategories()
     res.json(item_categories)
@@ -127,12 +167,10 @@ app.get("/item_categories", async (_, res) => {
 
 /* items */
 
-app.post("/items", async (req, res) => {
+app.post("/items", verifyToken, async (req, res) => {
   try {
     const item = req.body
-    const created_item = await createItem(item)
-
-    console.log(created_item);
+    const created_item = await createItem(item, req.current_user)
 
     res.json(created_item)
   } catch (error) {
@@ -158,9 +196,10 @@ app.get("/items", verifyToken, async (req, res) => {
   }
 })
 
-app.get("/items/my", async (_, res) => {
+app.get("/items/my", verifyToken, async (req, res) => {
   try {
-    const items = await getMyItems()
+    const current_user = req.current_user
+    const items = await getMyItems(current_user)
     res.json(items)
   }
   catch (error) {
@@ -174,7 +213,7 @@ app.get("/items/my", async (_, res) => {
 })
 
 
-app.get("/items/:id", async (req, res) => {
+app.get("/items/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
     const item = await getItem(id)
@@ -185,10 +224,10 @@ app.get("/items/:id", async (req, res) => {
   }
 })
 
-app.delete("/items/:id", async (req, res) => {
+app.delete("/items/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
-    const user_id = 1 // todo sacar del token
+    const user_id = 1
 
     const item = await deleteItem(id, user_id)
 
@@ -205,10 +244,10 @@ app.delete("/items/:id", async (req, res) => {
   }
 })
 
-app.put("/items/:id", async (req, res) => {
+app.put("/items/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
-    const user_id = 1 // todo sacar del token
+    const user_id = req.current_user?.id
     const params = req.body
 
     const item = await editItem(id, user_id, params)
@@ -228,7 +267,7 @@ app.put("/items/:id", async (req, res) => {
 
 /* item photos */
 
-app.post("/items/:id/photos", async (req, res) => {
+app.post("/items/:id/photos", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
     const user_id = 1 // todo sacar del token
@@ -253,13 +292,13 @@ app.post("/items/:id/photos", async (req, res) => {
 
 /* item score */
 
-app.post("/items/:id/score", async (req, res) => {
+app.post("/items/:id/score", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
     const score = req.body.score
+    const user_id = req.current_user?.id
 
-    console.log('********', id, score);
-    const item = await setItemScore(id, score)
+    const item = await setItemScore(id, score, user_id)
     res.json(item)
   }
   catch (error) {
@@ -270,10 +309,10 @@ app.post("/items/:id/score", async (req, res) => {
 
 /* item wishilist */
 
-app.post("/items/:id/wishlist", async (req, res) => {
+app.post("/items/:id/wishlist", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
-    const user_id = 1 // todo sacar del token
+    const user_id = req.current_user?.id
 
     const item = await setItemWishlist(id, user_id)
     res.json(item)
@@ -281,19 +320,20 @@ app.post("/items/:id/wishlist", async (req, res) => {
   }
   catch (error) {
     if (error.code == 409) {
-      res.status(409).send({ message: error })
+      console.log("**", error)
+      res.status(409).send(error)
     }
     else {
-      res.status(500).send({ message: error })
+      res.status(500).send(error)
     }
 
   }
 })
 
-app.delete("/items/:id/wishlist", async (req, res) => {
+app.delete("/items/:id/wishlist", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
-    const user_id = 1 // todo sacar del token
+    const user_id = req.current_user.id
 
     const item = await deleteItemWishlist(id, user_id)
     res.json(item)
@@ -301,11 +341,27 @@ app.delete("/items/:id/wishlist", async (req, res) => {
   }
   catch (error) {
     if (error.code == 409) {
-      res.status(409).send({ message: error })
+      console.log("**", error)
+      res.status(409).send(error)
     }
     else {
-      res.status(500).send({ message: error })
+      res.status(500).send(error)
     }
-
   }
 })
+
+
+/* search */
+
+app.post("/search", async (req, res) => {
+  try {
+    const search = req.body.search
+    const items = await searchItems(search)
+    res.json(items)
+  }
+  catch (error) {
+    res.status(500).send({ message: error })
+  }
+})
+
+export const server = app;

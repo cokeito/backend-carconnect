@@ -1,10 +1,9 @@
 import jwt from 'jsonwebtoken';
 import 'dotenv/config'
 
-
 export function verifyToken(req, res, next) {
   const bearerHeader = req.headers['authorization'];
-
+  //console.log('***HEADERS:', req.headers);
   if (!bearerHeader) {
     return res.status(403).send({ message: 'No token provided.' });
   }
@@ -13,7 +12,7 @@ export function verifyToken(req, res, next) {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
-      return res.status(500).send({ message: 'Failed to authenticate token.' });
+      return res.status(401).send({ message: 'Failed to authenticate token.' });
     }
     req.current_user = decoded;
     next();

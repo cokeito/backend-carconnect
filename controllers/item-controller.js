@@ -50,13 +50,13 @@ const check_status = (item_status) => {
   }
 }
 
-export const createItem = async (item) => {
+export const createItem = async (item, current_user) => {
 
-  console.log(item);
+  console.log(item, current_user);
   let { name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, photos } = item
 
   const status = 0
-  const user_id = 1 // todo sacar del token
+  const user_id = parseInt(current_user.id)
   const created_at = new Date()
 
   const values = [name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, status, user_id, created_at, created_at]
@@ -151,7 +151,8 @@ export const getItems = async () => {
   return rows
 }
 
-export const getMyItems = async () => {
+export const getMyItems = async (current_user) => {
+  console.log('current_user', current_user)
   const sql = `
       SELECT
         items.*,
@@ -176,7 +177,7 @@ export const getMyItems = async () => {
         items.id DESC
       `;
 
-  const user_id = 1 // todo sacar del token
+  const user_id = current_user.id
 
   const values = [user_id]
   const { rows, rowCount } = await pool.query(sql, values);
@@ -282,8 +283,7 @@ export const editItem = async (item_id, user_id, params) => {
   return updatedItem
 }
 
-export const setItemScore = async (item_id, score) => {
-  const user_id = 1 // todo sacar del token
+export const setItemScore = async (item_id, score, user_id) => {
   const created_at = new Date()
   const values = [item_id, score, created_at, created_at, user_id]
   const sql = `
@@ -332,7 +332,7 @@ export const setItemWishlist = async (item_id, user_id) => {
     console.log('item is already in wishlist');
     throw {
       code: 409,
-      response: 'item is already in wishlist',
+      message: 'Ya haz agregado este producto a la Wishlist',
     }
 
   }
