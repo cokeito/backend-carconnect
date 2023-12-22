@@ -1,6 +1,7 @@
 import { pool } from '../config/database.js'
 import fs from 'fs'
 import crypto from 'crypto';
+import { filterCurrency } from '../utils/utils.js'
 
 const check_item = async (item_id, user_id) => {
   // check if item exists
@@ -52,14 +53,14 @@ const check_status = (item_status) => {
 
 export const createItem = async (item, current_user) => {
 
-  console.log(item, current_user);
+  console.log('****', item, current_user);
   let { name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, photos } = item
 
   const status = 0
   const user_id = parseInt(current_user.id)
   const created_at = new Date()
 
-  const values = [name, excerpt, year, price, item_category_id, item_type, is_discount, discount_price, description, status, user_id, created_at, created_at]
+  const values = [name, excerpt, year, filterCurrency(price), item_category_id, item_type, is_discount, filterCurrency(discount_price), description, status, user_id, created_at, created_at]
 
   console.log(values);
 
@@ -109,12 +110,12 @@ export const createItem = async (item, current_user) => {
 
     console.log(sql_values);
 
-    const sql = `
+    const sql_photos = `
       INSERT INTO item_photos (photo, item_id, created_at, updated_at, status) 
       VALUES ${sql_values}
       RETURNING *
       `;
-    const { rows, rowCount } = await pool.query(sql, values.flat());
+    const { rows, rowCount } = await pool.query(sql_photos, values.flat());
 
     console.log('saved_photos: ', rows, rowCount);
     saved_item.photos = rows

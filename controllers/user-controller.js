@@ -203,9 +203,6 @@ export const createUserAvatar = async (user_id, photo) => {
   delete updated_user.password
   return updated_user
 
-  return file_uri
-
-
 }
 
 export const editUser = async (id, params) => {

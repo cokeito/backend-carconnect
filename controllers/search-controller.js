@@ -21,7 +21,7 @@ export const searchItems = async (str) => {
     WHERE
       items.status = 0
     AND
-      items.name LIKE '%' || $1 || '%'
+      items.name iLIKE '%' || $1 || '%'
     GROUP BY
       items.id, item_categories.name
     ORDER by

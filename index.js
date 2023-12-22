@@ -90,16 +90,18 @@ app.get('/wishlist/user', verifyToken, async (req, res) => {
 })
 
 
-app.post('/users/:id/avatar', verifyToken, async (req, res) => {
+app.post('/users/avatar', verifyToken, async (req, res) => {
   try {
-    const id = req.params.id
-    const user_id = 1 // todo sacar del token
-
+    const user_id = req.current_user.id
     const photo64 = req.body.avatar
+    const login = await createUserAvatar(user_id, photo64)
+    const token = jwt.sign(login, process.env.JWT_SECRET, { expiresIn: '4h' })
 
-    const item = await createUserAvatar(user_id, photo64)
-
-    res.json(item)
+    const data = {
+      user: login,
+      token: token
+    }
+    res.json(data)
   }
   catch (error) {
     console.log(error);
@@ -227,7 +229,7 @@ app.get("/items/:id", verifyToken, async (req, res) => {
 app.delete("/items/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id
-    const user_id = 1
+    const user_id = req.current_user.id
 
     const item = await deleteItem(id, user_id)
 
