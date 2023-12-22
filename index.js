@@ -222,7 +222,12 @@ app.get("/items/:id", verifyToken, async (req, res) => {
     res.json(item)
   }
   catch (error) {
-    res.status(500).send({ message: error })
+    if (error.code == 404) {
+      res.status(404).send({ message: error.message })
+    } else {
+      res.status(500).send({ message: error })
+
+    }
   }
 })
 

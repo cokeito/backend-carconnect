@@ -20,13 +20,11 @@ describe("Backend Testing - CarConnect", () => {
     expect(res.status).toBe(403);
   })
 
-  it('get a server status 500 if token is invalid', async () => {
+  it('get a server status 401 unauthorized if token is invalid', async () => {
     const res = await requestWithSupertest.get("/items")
       .set("Authorization", `Bearer NOT_A_VALID_TOKEN`);
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(401);
   })
-
-
 
   it('get a server status 200 and an object with at least 1 item', async () => {
     let res = await requestWithSupertest.get("/items")
@@ -37,6 +35,25 @@ describe("Backend Testing - CarConnect", () => {
     expect(res.body.length).toBeGreaterThan(0);
   });
 
+  it('get a server status 404 if product not found', async () => {
+
+    const random_item_id = Math.floor(Math.random() * 1000);
+
+    let res = await requestWithSupertest.get(`/items/${random_item_id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('get user object data of testing user (id=1)', async () => {
+
+    const user_id = 1
+
+    let res = await requestWithSupertest.get(`/users/${user_id}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const { body } = res;
+    expect(body).toBeInstanceOf(Object);
+  });
 
 });
 

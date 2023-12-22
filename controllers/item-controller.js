@@ -212,10 +212,9 @@ export const getItem = async (id) => {
   const { rows: [item], rowCount } = await pool.query(sql, [id]);
 
   if (rowCount == 0) {
-    console.log('item not found');
     throw {
       code: 404,
-      response: 'item not found',
+      message: 'Producto no encontrado',
     }
   }
 
