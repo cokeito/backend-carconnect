@@ -7,7 +7,7 @@ import { verifyToken } from './middlewares/middleware.js'
 
 
 import { registerUser, validateLogin, getUser, getUsers, createUserAvatar, editUser, getWishlist, getUserWishlist } from './controllers/user-controller.js'
-import { createItem, getItem, getItems, setItemScore, setItemWishlist, deleteItemWishlist, deleteItem, editItem, getMyItems } from './controllers/item-controller.js'
+import { createItem, getItem, getItems, setItemScore, setItemWishlist, deleteItemWishlist, deleteItem, editItem, getMyItems, filterItems } from './controllers/item-controller.js'
 import { getItemCategories } from './controllers/item_categories-controller.js'
 import { searchItems } from './controllers/search-controller.js'
 
@@ -357,6 +357,16 @@ app.delete("/items/:id/wishlist", verifyToken, async (req, res) => {
   }
 })
 
+app.post("/items/filter", verifyToken, async (req, res) => {
+  try {
+    const params = req.body
+    const items = await filterItems(params)
+    res.json(items)
+  }
+  catch (error) {
+    res.status(500).send({ message: error })
+  }
+})
 
 /* search */
 

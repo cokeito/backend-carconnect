@@ -358,4 +358,39 @@ export const deleteItemWishlist = async (item_id, user_id) => {
   return item
 }
 
+export const filterItems = async (params) => {
+  console.log(params);
+  const cat_ids = params.cat_ids
+
+  const filter_ids = cat_ids.toString()
+  console.log('moo', filter_ids);
+
+  const sql = `
+      SELECT
+        items.*,
+        array_to_json(array_remove(array_agg(DISTINCT item_photos), NULL)) AS photos,
+        COALESCE(ROUND(AVG(item_scores.score)), 0) AS average_score,
+        item_categories.name AS category_name
+      FROM
+        items
+      LEFT JOIN
+        item_photos ON item_photos.item_id = items.id
+      LEFT JOIN 
+        item_scores ON item_scores.item_id = items.id
+      LEFT JOIN
+        item_categories ON item_categories.id = items.item_category_id
+      WHERE
+        items.status = 0
+      AND
+        items.item_category_id IN (${filter_ids})
+      GROUP BY
+        items.id, item_categories.name
+      ORDER BY
+        items.id DESC
+      `;
+
+  const { rows, rowCount } = await pool.query(sql);
+
+  return rows
+}
 
